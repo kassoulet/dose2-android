@@ -114,7 +114,7 @@ static void stats_endFrame(Stats* s)
 }
 
 void demo_init();
-void demo_frame(void* pixels, float time);
+int demo_frame(void* pixels, float time);
 
 JNIEXPORT void JNICALL Java_kassoulet_dose2_Dose2View_initDemo(JNIEnv * env, jobject obj, jobject path, jint width, jint height)
 {
@@ -125,7 +125,7 @@ JNIEXPORT void JNICALL Java_kassoulet_dose2_Dose2View_initDemo(JNIEnv * env, job
 	(*env)->ReleaseStringUTFChars(env, path, nativeString);
 }
 
-JNIEXPORT void JNICALL Java_kassoulet_dose2_Dose2View_renderDemo(JNIEnv * env, jobject obj, jobject bitmap, jlong time_ms)
+JNIEXPORT jint JNICALL Java_kassoulet_dose2_Dose2View_renderDemo(JNIEnv * env, jobject obj, jobject bitmap, jlong time_ms)
 {
 	AndroidBitmapInfo info;
 	void* pixels;
@@ -160,9 +160,13 @@ JNIEXPORT void JNICALL Java_kassoulet_dose2_Dose2View_renderDemo(JNIEnv * env, j
 
 	//float f = (time_ms / 1000.0 / 60.0) * 132.3412 * 4.0;
 	//LOGI("time= %lld %f %f", time_ms, f, f/32.0);
-	demo_frame(pixels, (float) time_ms);
+	int stop = demo_frame(pixels, (float) time_ms);
 
 	AndroidBitmap_unlockPixels(env, bitmap);
 
+#if DEBUG
 	stats_endFrame(&stats);
+#endif
+
+	return stop;
 }

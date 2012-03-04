@@ -85,7 +85,7 @@ static uint16_t make565(int red, int green, int blue)
 	return (uint16_t)(((red << 8) & 0xf800) | ((green << 2) & 0x03e0) | ((blue >> 3) & 0x001f));
 }
 
-void fillcopy(uint16_t *screen, uint8_t* graffa, int fill)
+void fillcopy_OLD(uint16_t *screen, uint8_t* graffa, int fill)
 {
 	int x, y;
 	uint8_t *q8 = graffa;
@@ -99,16 +99,42 @@ void fillcopy(uint16_t *screen, uint8_t* graffa, int fill)
 		for (x = 0; x < WIDTH; x++) {
 			q8[x + WIDTH] ^= q8[x];
 			p16[x] = palette[q8[x]];
-			//p16[x] = palette[x&255];
 		}
 		p16 += WIDTH;
 		q8 += WIDTH;
 	}
 }
 
+void fillcopy(uint16_t *screen, uint8_t* graffa, int fill)
+{
+	int x, y;
+	uint8_t *q8 = graffa;
+	uint16_t *p16 = screen;
+	uint32_t *q32 = (uint32_t*) graffa;
+
+	for (x = 1; x < WIDTH; x++) {
+		q8[x] ^= q8[x - 1];
+	}
+
+	for (y = 0; y < HEIGHT - 1; y++) {
+		for (x = 0; x < WIDTH/4; x++) {
+			q32[x + WIDTH/4] ^= q32[x];
+			p16[4*x+0] = palette[q8[4*x+0]];
+			p16[4*x+1] = palette[q8[4*x+1]];
+			p16[4*x+2] = palette[q8[4*x+2]];
+			p16[4*x+3] = palette[q8[4*x+3]];
+		}
+		p16 += WIDTH;
+		q32 += WIDTH/4;
+		q8 += WIDTH;
+	}
+}
+
+
+
 void rundemo(float t);
 
-void demo_frame(void* pixels, float time)
+int demo_frame(void* pixels, float time)
 {
 	float f;
 
@@ -132,5 +158,7 @@ void demo_frame(void* pixels, float time)
 
 	release();
 	demo_frames++;
+
+	return stopnow;
 }
 

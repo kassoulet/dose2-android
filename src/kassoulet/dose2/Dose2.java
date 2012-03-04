@@ -26,56 +26,95 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 
 public class Dose2 extends Activity {
-	private MediaPlayer music = null;
+	private MediaPlayer mediaPlayer = null;
 
-	/** Called when the activity is first created. */
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-
-		copyAssets();
-		setContentView(new Dose2View(this));
-		deleteAssets();
-
-		// music_play("italo128.ogg");
-	}
-
-	private void deleteAssets() {
-		File folder = getCacheDir();
-		for (File f : folder.listFiles()) {
-			// Log.d("files", "deleting: " + f);
-			f.delete();
-		}
-	}
+	private PowerManager.WakeLock wakeLock;
 
 	/* load our native library */
 	static {
 		System.loadLibrary("dose2");
 	}
 
+	/** Called when the activity is first created. */
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+
+		// Prevent screen to be dimmed
+		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+		wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK, "DoNotDimScreen");
+
+		// Copy assets to cache so native code can access them
+		copyAssets();
+
+		// Create view, load native data
+		setContentView(new Dose2View(this));
+
+		// Delete cached files
+		deleteAssets();
+
+		// And starts the music!
+		music_play("italo128.ogg");
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+		wakeLock.release();
+		Log.i("activity", "OnPause");
+		finish();
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		wakeLock.acquire();
+		Log.i("activity", "OnResume");
+	}
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		mediaPlayer.stop();
+		mediaPlayer.release();
+		Log.i("activity", "OnDestroy");
+	}
+
+	private void deleteAssets() {
+		File folder = getCacheDir();
+		for (File f : folder.listFiles()) {
+			f.delete();
+		}
+	}
+
 	public void music_play(String fname) {
+		// Load and play an audio file from assets
 		AssetManager am = Dose2.this.getAssets();
 		try {
 			AssetFileDescriptor fd = am.openFd(fname);
-			music = new MediaPlayer();
-			// music.setAudioStreamType(AudioManager.STREAM_MUSIC);
-			music.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
-			Log.d("player", "" + fd.getFileDescriptor() + " " + fd.getStartOffset() + " " + fd.getLength());
+			mediaPlayer = new MediaPlayer();
+			mediaPlayer.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
 			fd.close();
-			music.setLooping(true);
-			music.prepare();
-			music.start();
+			mediaPlayer.setLooping(false);
+			mediaPlayer.prepare();
+			mediaPlayer.start();
 		} catch (IOException e) {
 		}
 	}
@@ -94,8 +133,6 @@ public class Dose2 extends Activity {
 				InputStream in = null;
 				OutputStream out = null;
 				try {
-					// Log.d("assets", "" + filename + " -> " + folder + "/" +
-					// filename);
 					in = assetManager.open(filename);
 					out = new FileOutputStream(folder + "/" + filename);
 					copyFile(in, out);
@@ -120,42 +157,120 @@ public class Dose2 extends Activity {
 	}
 }
 
-class Dose2View extends View {
-	private Bitmap mBitmap;
-	private long mStartTime;
+class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
+	private Bitmap bitmap;
+	private long startTime;
+	private int frames = 0;
+	DrawingThread thread;
 
 	private static native void renderDemo(Bitmap bitmap, long time_ms);
+
 	private static native void initDemo(String dataFolder, int w, int h);
 
 	public Dose2View(Context context) {
 		super(context);
+		getHolder().addCallback(this);
 
-		final int W;
-		final int H;
-
+		// Get screen size
+		int width, height;
 		DisplayMetrics displaymetrics = new DisplayMetrics();
-        ((Activity) context).getWindowManager().getDefaultDisplay().getMetrics(displaymetrics);
-        W = displaymetrics.widthPixels/1;
-        H = displaymetrics.heightPixels/2;
-		
-        Log.e("ui", "Creating a " + W + "x" + H + " bitmap");
-        
-		mBitmap = Bitmap.createBitmap(W, H, Bitmap.Config.RGB_565);
-		initDemo(context.getCacheDir().toString(), W, H);
-		mStartTime = System.currentTimeMillis();
+		((Activity) context).getWindowManager().getDefaultDisplay().getMetrics(displaymetrics);
+		width = displaymetrics.widthPixels;
+		height = displaymetrics.heightPixels;
+
+		// but we want a 4:3 aspect ratio
+		width = height * 4 / 3;
+
+		Log.i("ui", "Creating a " + width + "x" + height + " bitmap");
+
+		// Create buffer
+		bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+		// And init demo
+		initDemo(context.getCacheDir().toString(), width, height);
+		startTime = System.currentTimeMillis();
 	}
 
 	@Override
 	protected void onDraw(Canvas canvas) {
+		frames++;
 
-		//canvas.drawColor(0xFFCCCCCC);
-		renderDemo(mBitmap, System.currentTimeMillis() - mStartTime);
+		// Call native renderer
+		renderDemo(bitmap, System.currentTimeMillis() - startTime);
 
-        //Log.e("ui", "Using a " + canvas.getWidth() + "x" + canvas.getHeight() + " canvas");
+		// And draw bitmap buffer 
+		int padding = (canvas.getWidth() - bitmap.getWidth()) / 2;
+		canvas.drawBitmap(bitmap, padding, 0, null);
 
-		
-		canvas.drawBitmap(mBitmap, 0, 0, null);
-		// force a redraw, with a different time-based pattern.
-		invalidate();
+		/*String fps = "" + (int) (1000.0 * frames / (System.currentTimeMillis() - startTime)) + " fps";
+		Paint paint = new Paint();
+		paint.setColor(Color.WHITE);
+		canvas.drawText(fps, padding + 10, 10, paint);*/
+	}
+
+	@Override
+	public void surfaceChanged(SurfaceHolder holder, int arg1, int arg2, int arg3) {
+		Log.i("sv", "surfaceChanged");
+	}
+
+	@Override
+	public void surfaceCreated(SurfaceHolder holder) {
+		Log.i("sv", "surfaceCreated");
+		thread = new DrawingThread(getHolder(), this);
+		thread.setRunning(true);
+		thread.start();
+	}
+
+	@Override
+	public void surfaceDestroyed(SurfaceHolder holder) {
+		Log.i("sv", "surfaceDestroyed");
+
+		boolean retry = true;
+		thread.setRunning(false);
+		while (retry) {
+			try {
+				thread.join();
+				retry = false;
+			} catch (InterruptedException e) {
+				// we will try it again and again...
+				Log.i("sv", "retry join");
+			}
+		}
+	}
+}
+
+class DrawingThread extends Thread {
+	private SurfaceHolder surfaceHolder;
+	private Dose2View panel;
+	private boolean run = false;
+
+	public DrawingThread(SurfaceHolder surfaceHolder, Dose2View panel) {
+		this.surfaceHolder = surfaceHolder;
+		this.panel = panel;
+	}
+
+	public void setRunning(boolean run) {
+		this.run = run;
+	}
+
+	public SurfaceHolder getSurfaceHolder() {
+		return surfaceHolder;
+	}
+
+	@Override
+	public void run() {
+		Canvas canvas;
+		while (run) {
+			canvas = null;
+			try {
+				canvas = surfaceHolder.lockCanvas(null);
+				synchronized (surfaceHolder) {
+					panel.onDraw(canvas);
+				}
+			} finally {
+				if (canvas != null) {
+					surfaceHolder.unlockCanvasAndPost(canvas);
+				}
+			}
+		}
 	}
 }
