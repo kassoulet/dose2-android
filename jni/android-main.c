@@ -82,10 +82,10 @@ static uint16_t palette[256];
 
 static uint16_t make565(int red, int green, int blue)
 {
-	return (uint16_t)(((red << 8) & 0xf800) | ((green << 2) & 0x03e0) | ((blue >> 3) & 0x001f));
+	return (uint16_t)(((red << 8) & 0xf800) | ((green << 3) & 0x07e0) | ((blue >> 3) & 0x001f));
 }
 
-void fillcopy_OLD(uint16_t *screen, uint8_t* graffa, int fill)
+void fillcopy(uint16_t *screen, uint8_t* graffa, int fill)
 {
 	int x, y;
 	uint8_t *q8 = graffa;
@@ -105,7 +105,7 @@ void fillcopy_OLD(uint16_t *screen, uint8_t* graffa, int fill)
 	}
 }
 
-void fillcopy(uint16_t *screen, uint8_t* graffa, int fill)
+void fillcopy_(uint16_t *screen, uint8_t* graffa, int fill)
 {
 	int x, y;
 	uint8_t *q8 = graffa;
