@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2010 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package kassoulet.dose2;
 
 import java.io.File;
@@ -20,31 +5,28 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.os.Bundle;
-import android.os.Environment;
-import android.os.PowerManager;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.media.MediaPlayer;
+import android.os.Bundle;
+import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Matrix;
-import android.graphics.Paint;
+import android.view.View.OnClickListener;
 
-public class Dose2 extends Activity {
+public class Dose2 extends Activity implements OnClickListener {
 	private MediaPlayer mediaPlayer = null;
-
+	Dose2View view;
 	private PowerManager.WakeLock wakeLock;
 
 	/* load our native library */
@@ -52,73 +34,11 @@ public class Dose2 extends Activity {
 		System.loadLibrary("dose2");
 	}
 
-	/** Called when the activity is first created. */
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-
-		// Prevent screen to be dimmed
-		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-		wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK, "DoNotDimScreen");
-
-		// Copy assets to cache so native code can access them
-		copyAssets();
-
-		// Create view, load native data
-		setContentView(new Dose2View(this));
-
-		// Delete cached files
-		deleteAssets();
-
-		// And starts the music!
-		music_play("italo128.ogg");
+	// Implement the OnClickListener callback
+	public void onClick(View v) {
+		view.toggleFPS();
 	}
-
-	@Override
-	protected void onPause() {
-		super.onPause();
-		wakeLock.release();
-		Log.i("activity", "OnPause");
-		finish();
-	}
-
-	@Override
-	protected void onResume() {
-		super.onResume();
-		wakeLock.acquire();
-		Log.i("activity", "OnResume");
-	}
-
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		mediaPlayer.stop();
-		mediaPlayer.release();
-		Log.i("activity", "OnDestroy");
-	}
-
-	private void deleteAssets() {
-		File folder = getCacheDir();
-		for (File f : folder.listFiles()) {
-			f.delete();
-		}
-	}
-
-	public void music_play(String fname) {
-		// Load and play an audio file from assets
-		AssetManager am = Dose2.this.getAssets();
-		try {
-			AssetFileDescriptor fd = am.openFd(fname);
-			mediaPlayer = new MediaPlayer();
-			mediaPlayer.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
-			fd.close();
-			mediaPlayer.setLooping(false);
-			mediaPlayer.prepare();
-			mediaPlayer.start();
-		} catch (IOException e) {
-		}
-	}
-
+	
 	private void copyAssets() {
 		File folder = getCacheDir();
 		AssetManager assetManager = getAssets();
@@ -155,21 +75,98 @@ public class Dose2 extends Activity {
 			out.write(buffer, 0, read);
 		}
 	}
+
+	private void deleteAssets() {
+		File folder = getCacheDir();
+		for (File f : folder.listFiles()) {
+			f.delete();
+		}
+	}
+
+	public void music_play(String fname) {
+		// Load and play an audio file from assets
+		AssetManager am = Dose2.this.getAssets();
+		try {
+			AssetFileDescriptor fd = am.openFd(fname);
+			mediaPlayer = new MediaPlayer();
+			mediaPlayer.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
+			fd.close();
+			mediaPlayer.setLooping(false);
+			mediaPlayer.prepare();
+			mediaPlayer.start();
+		} catch (IOException e) {
+		}
+	}
+
+	/** Called when the activity is first created. */
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+
+		// Prevent screen to be dimmed
+		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+		wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK, "DoNotDimScreen");
+
+		// Copy assets to cache so native code can access them
+		copyAssets();
+
+		// Create view, load native data
+		view = new Dose2View(this);
+		setContentView(view);
+		view.setClickable(true);
+		view.setOnClickListener(this);
+		
+		// Delete cached files
+		deleteAssets();
+
+		// And starts the music!
+		music_play("italo128.ogg");
+	}
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		mediaPlayer.stop();
+		mediaPlayer.release();
+		Log.i("activity", "OnDestroy");
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+		wakeLock.release();
+		Log.i("activity", "OnPause");
+		finish();
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		wakeLock.acquire();
+		Log.i("activity", "OnResume");
+	}
 }
 
 class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
+	private static native void initDemo(String dataFolder, int w, int h);
+
+	private static native int renderDemo(Bitmap bitmap, long time_ms);
+
 	private Bitmap bitmap;
-	private long startTime;
+	private long startTime = 0;
 	private int frames = 0;
+	boolean displayFPS = false;
+
 	DrawingThread thread;
 
-	private static native void renderDemo(Bitmap bitmap, long time_ms);
-
-	private static native void initDemo(String dataFolder, int w, int h);
+	Activity activity;
 
 	public Dose2View(Context context) {
 		super(context);
 		getHolder().addCallback(this);
+		this.activity = (Activity) context;
+
+		this.setClickable(true);
 
 		// Get screen size
 		int width, height;
@@ -187,24 +184,40 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 		bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
 		// And init demo
 		initDemo(context.getCacheDir().toString(), width, height);
-		startTime = System.currentTimeMillis();
+	}
+
+	public void toggleFPS() {
+		displayFPS = !displayFPS;
 	}
 
 	@Override
 	protected void onDraw(Canvas canvas) {
+		if (canvas == null) {
+			return;
+		}
+		if (startTime == 0) {
+			startTime = System.currentTimeMillis();
+		}
 		frames++;
 
 		// Call native renderer
-		renderDemo(bitmap, System.currentTimeMillis() - startTime);
+		int stop = renderDemo(bitmap, System.currentTimeMillis() - startTime);
 
-		// And draw bitmap buffer 
+		if (stop > 0) {
+			Log.i("ui", "Exiting.");
+			activity.finish();
+		}
+
+		// And draw bitmap buffer
 		int padding = (canvas.getWidth() - bitmap.getWidth()) / 2;
 		canvas.drawBitmap(bitmap, padding, 0, null);
 
-		/*String fps = "" + (int) (1000.0 * frames / (System.currentTimeMillis() - startTime)) + " fps";
-		Paint paint = new Paint();
-		paint.setColor(Color.WHITE);
-		canvas.drawText(fps, padding + 10, 10, paint);*/
+		if (displayFPS) {
+			String fps = "" + (int) (1000.0 * frames / (System.currentTimeMillis() - startTime)) + " fps";
+			Paint paint = new Paint();
+			paint.setColor(Color.WHITE);
+			canvas.drawText(fps, padding + 10, 10, paint);
+		}
 	}
 
 	@Override
@@ -248,10 +261,6 @@ class DrawingThread extends Thread {
 		this.panel = panel;
 	}
 
-	public void setRunning(boolean run) {
-		this.run = run;
-	}
-
 	public SurfaceHolder getSurfaceHolder() {
 		return surfaceHolder;
 	}
@@ -272,5 +281,9 @@ class DrawingThread extends Thread {
 				}
 			}
 		}
+	}
+
+	public void setRunning(boolean run) {
+		this.run = run;
 	}
 }
