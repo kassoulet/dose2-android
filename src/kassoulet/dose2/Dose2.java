@@ -160,6 +160,7 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 	DrawingThread thread;
 
 	Activity activity;
+	private Paint paint;
 
 	public Dose2View(Context context) {
 		super(context);
@@ -184,6 +185,9 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 		bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
 		// And init demo
 		initDemo(context.getCacheDir().toString(), width, height);
+		
+		paint = new Paint();
+		paint.setColor(Color.WHITE);
 	}
 
 	public void toggleFPS() {
@@ -214,8 +218,6 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 
 		if (displayFPS) {
 			String fps = "" + (int) (1000.0 * frames / (System.currentTimeMillis() - startTime)) + " fps";
-			Paint paint = new Paint();
-			paint.setColor(Color.WHITE);
 			canvas.drawText(fps, padding + 10, 10, paint);
 		}
 	}
