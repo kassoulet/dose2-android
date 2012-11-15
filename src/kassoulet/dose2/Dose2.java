@@ -1,3 +1,7 @@
+/* 
+ * Dose2 for Android by Gautier Portet
+ * Java Application 
+ * */
 package kassoulet.dose2;
 
 import java.io.File;
@@ -29,7 +33,7 @@ public class Dose2 extends Activity implements OnClickListener {
 	Dose2View view;
 	private PowerManager.WakeLock wakeLock;
 
-	/* load our native library */
+	// Load our native library
 	static {
 		System.loadLibrary("dose2");
 	}
@@ -39,6 +43,7 @@ public class Dose2 extends Activity implements OnClickListener {
 		view.toggleFPS();
 	}
 	
+	// Copy APK assets to cache folder
 	private void copyAssets() {
 		File folder = getCacheDir();
 		AssetManager assetManager = getAssets();
@@ -67,7 +72,7 @@ public class Dose2 extends Activity implements OnClickListener {
 			}
 		}
 	}
-
+	
 	private void copyFile(InputStream in, OutputStream out) throws IOException {
 		byte[] buffer = new byte[1024];
 		int read;
@@ -76,6 +81,7 @@ public class Dose2 extends Activity implements OnClickListener {
 		}
 	}
 
+	// Remove all files from cache
 	private void deleteAssets() {
 		File folder = getCacheDir();
 		for (File f : folder.listFiles()) {
@@ -83,6 +89,7 @@ public class Dose2 extends Activity implements OnClickListener {
 		}
 	}
 
+	// Play our music file. Uses Android MediaPlayer
 	public void music_play(String fname) {
 		// Load and play an audio file from assets
 		AssetManager am = Dose2.this.getAssets();
@@ -98,7 +105,7 @@ public class Dose2 extends Activity implements OnClickListener {
 		}
 	}
 
-	/** Called when the activity is first created. */
+	// Called when the activity is first created.
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -119,7 +126,7 @@ public class Dose2 extends Activity implements OnClickListener {
 		// Delete cached files
 		deleteAssets();
 
-		// And starts the music!
+		// And start the music!
 		music_play("italo128.ogg");
 	}
 
@@ -128,14 +135,12 @@ public class Dose2 extends Activity implements OnClickListener {
 		super.onDestroy();
 		mediaPlayer.stop();
 		mediaPlayer.release();
-		Log.i("activity", "OnDestroy");
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
 		wakeLock.release();
-		Log.i("activity", "OnPause");
 		finish();
 	}
 
@@ -143,13 +148,11 @@ public class Dose2 extends Activity implements OnClickListener {
 	protected void onResume() {
 		super.onResume();
 		wakeLock.acquire();
-		Log.i("activity", "OnResume");
 	}
 }
 
 class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 	private static native void initDemo(String dataFolder, int w, int h);
-
 	private static native int renderDemo(Bitmap bitmap, long time_ms);
 
 	private Bitmap bitmap;
@@ -167,8 +170,6 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 		getHolder().addCallback(this);
 		this.activity = (Activity) context;
 
-		this.setClickable(true);
-
 		// Get screen size
 		int width, height;
 		DisplayMetrics displaymetrics = new DisplayMetrics();
@@ -178,16 +179,18 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 
 		// but we want a 4:3 aspect ratio
 		width = height * 4 / 3;
-
 		Log.i("ui", "Creating a " + width + "x" + height + " bitmap");
 
 		// Create buffer
 		bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+		
 		// And init demo
 		initDemo(context.getCacheDir().toString(), width, height);
-		
+
+		// For FPS display
 		paint = new Paint();
 		paint.setColor(Color.WHITE);
+		this.setClickable(true);
 	}
 
 	public void toggleFPS() {
@@ -197,9 +200,11 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 	@Override
 	protected void onDraw(Canvas canvas) {
 		if (canvas == null) {
+			// Something bad happened.
 			return;
 		}
 		if (startTime == 0) {
+			// Set our time reference now, when the display start, so the synchro is correct.
 			startTime = System.currentTimeMillis();
 		}
 		frames++;
@@ -224,12 +229,10 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 
 	@Override
 	public void surfaceChanged(SurfaceHolder holder, int arg1, int arg2, int arg3) {
-		Log.i("sv", "surfaceChanged");
 	}
 
 	@Override
 	public void surfaceCreated(SurfaceHolder holder) {
-		Log.i("sv", "surfaceCreated");
 		thread = new DrawingThread(getHolder(), this);
 		thread.setRunning(true);
 		thread.start();
@@ -237,8 +240,6 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 
 	@Override
 	public void surfaceDestroyed(SurfaceHolder holder) {
-		Log.i("sv", "surfaceDestroyed");
-
 		boolean retry = true;
 		thread.setRunning(false);
 		while (retry) {
@@ -247,7 +248,6 @@ class Dose2View extends SurfaceView implements SurfaceHolder.Callback {
 				retry = false;
 			} catch (InterruptedException e) {
 				// we will try it again and again...
-				Log.i("sv", "retry join");
 			}
 		}
 	}

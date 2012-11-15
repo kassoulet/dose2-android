@@ -1,3 +1,8 @@
+/*
+ * Dose2 for Android by Gautier Portet
+ * Main for Android
+ * */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -105,6 +110,7 @@ void fillcopy(uint16_t *screen, uint8_t* graffa, int fill)
 	}
 }
 
+// 4 pixels at a time, unused because it needs width to be multiple of 4.
 void fillcopy_(uint16_t *screen, uint8_t* graffa, int fill)
 {
 	int x, y;
@@ -117,20 +123,18 @@ void fillcopy_(uint16_t *screen, uint8_t* graffa, int fill)
 	}
 
 	for (y = 0; y < HEIGHT - 1; y++) {
-		for (x = 0; x < WIDTH/4; x++) {
-			q32[x + WIDTH/4] ^= q32[x];
-			p16[4*x+0] = palette[q8[4*x+0]];
-			p16[4*x+1] = palette[q8[4*x+1]];
-			p16[4*x+2] = palette[q8[4*x+2]];
-			p16[4*x+3] = palette[q8[4*x+3]];
+		for (x = 0; x < WIDTH / 4; x++) {
+			q32[x + WIDTH / 4] ^= q32[x];
+			p16[4 * x + 0] = palette[q8[4 * x + 0]];
+			p16[4 * x + 1] = palette[q8[4 * x + 1]];
+			p16[4 * x + 2] = palette[q8[4 * x + 2]];
+			p16[4 * x + 3] = palette[q8[4 * x + 3]];
 		}
 		p16 += WIDTH;
-		q32 += WIDTH/4;
+		q32 += WIDTH / 4;
 		q8 += WIDTH;
 	}
 }
-
-
 
 void rundemo(float t);
 

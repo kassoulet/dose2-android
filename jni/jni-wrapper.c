@@ -1,3 +1,8 @@
+/*
+ * Dose2 for Android by Gautier Portet
+ * JNI Wrapper
+ * */
+
 #include <jni.h>
 #include <time.h>
 #include <android/log.h>
@@ -87,10 +92,8 @@ static void stats_endFrame(Stats* s)
 			avgRender /= s->numFrames;
 			avgFrame /= s->numFrames;
 
-			LOGI("frame/s (avg,min,max) = (%.1f,%.1f,%.1f) "
-					"render time ms (avg,min,max) = (%.1f,%.1f,%.1f)\n",
-					1000./avgFrame, 1000./maxFrame, 1000./minFrame,
-					avgRender, minRender, maxRender);
+			//LOGI(	"frame/s (avg,min,max) = (%.1f,%.1f,%.1f) "
+			//		"render time ms (avg,min,max) = (%.1f,%.1f,%.1f)\n", 1000./avgFrame, 1000./maxFrame, 1000./minFrame, avgRender, minRender, maxRender);
 		}
 		s->numFrames = 0;
 		s->firstFrame = 0;
@@ -125,7 +128,8 @@ JNIEXPORT void JNICALL Java_kassoulet_dose2_Dose2View_initDemo(JNIEnv * env, job
 	(*env)->ReleaseStringUTFChars(env, path, nativeString);
 }
 
-JNIEXPORT jint JNICALL Java_kassoulet_dose2_Dose2View_renderDemo(JNIEnv * env, jobject obj, jobject bitmap, jlong time_ms)
+JNIEXPORT jint JNICALL Java_kassoulet_dose2_Dose2View_renderDemo(JNIEnv * env, jobject obj, jobject bitmap,
+		jlong time_ms)
 {
 	AndroidBitmapInfo info;
 	void* pixels;
@@ -133,26 +137,22 @@ JNIEXPORT jint JNICALL Java_kassoulet_dose2_Dose2View_renderDemo(JNIEnv * env, j
 	static Stats stats;
 	static int init;
 
-	if (!init)
-	{
+	if (!init) {
 		stats_init(&stats);
 		init = 1;
 	}
 
-	if ((ret = AndroidBitmap_getInfo(env, bitmap, &info)) < 0)
-	{
+	if ((ret = AndroidBitmap_getInfo(env, bitmap, &info)) < 0) {
 		LOGE("AndroidBitmap_getInfo() failed ! error=%d", ret);
 		return;
 	}
 
-	if (info.format != ANDROID_BITMAP_FORMAT_RGB_565)
-	{
+	if (info.format != ANDROID_BITMAP_FORMAT_RGB_565) {
 		LOGE("Bitmap format is not RGB_565 !");
 		return;
 	}
 
-	if ((ret = AndroidBitmap_lockPixels(env, bitmap, &pixels)) < 0)
-	{
+	if ((ret = AndroidBitmap_lockPixels(env, bitmap, &pixels)) < 0) {
 		LOGE("AndroidBitmap_lockPixels() failed ! error=%d", ret);
 	}
 
